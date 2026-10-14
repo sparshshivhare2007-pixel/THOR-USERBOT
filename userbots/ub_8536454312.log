@@ -1,0 +1,93 @@
+Peer id invalid: -1002968700384
+Traceback (most recent call last):
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/methods/advanced/resolve_peer.py", line 62, in resolve_peer
+    return await self.storage.get_peer_by_id(peer_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/storage/sqlite_storage.py", line 142, in get_peer_by_id
+    raise KeyError(f"ID not found: {peer_id}")
+KeyError: 'ID not found: -1002968700384'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/dispatcher.py", line 214, in handler_worker
+    await parser(update, users, chats)
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/dispatcher.py", line 75, in edited_message_parser
+    parsed, _ = await message_parser(update, users, chats)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/dispatcher.py", line 68, in message_parser
+    await pyrogram.types.Message._parse(self.client, update.message, users, chats,
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/types/messages_and_media/message.py", line 836, in _parse
+    reply_to_message = await client.get_messages(
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/methods/messages/get_messages.py", line 101, in get_messages
+    peer = await self.resolve_peer(chat_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/methods/advanced/resolve_peer.py", line 89, in resolve_peer
+    peer_type = utils.get_peer_type(peer_id)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/utils.py", line 246, in get_peer_type
+    raise ValueError(f"Peer id invalid: {peer_id}")
+ValueError: Peer id invalid: -1002968700384
+Peer id invalid: -1002968700384
+Traceback (most recent call last):
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/methods/advanced/resolve_peer.py", line 62, in resolve_peer
+    return await self.storage.get_peer_by_id(peer_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/storage/sqlite_storage.py", line 142, in get_peer_by_id
+    raise KeyError(f"ID not found: {peer_id}")
+KeyError: 'ID not found: -1002968700384'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/dispatcher.py", line 214, in handler_worker
+    await parser(update, users, chats)
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/dispatcher.py", line 75, in edited_message_parser
+    parsed, _ = await message_parser(update, users, chats)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/dispatcher.py", line 68, in message_parser
+    await pyrogram.types.Message._parse(self.client, update.message, users, chats,
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/types/messages_and_media/message.py", line 836, in _parse
+    reply_to_message = await client.get_messages(
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/methods/messages/get_messages.py", line 101, in get_messages
+    peer = await self.resolve_peer(chat_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/methods/advanced/resolve_peer.py", line 89, in resolve_peer
+    peer_type = utils.get_peer_type(peer_id)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/utils.py", line 246, in get_peer_type
+    raise ValueError(f"Peer id invalid: {peer_id}")
+ValueError: Peer id invalid: -1002968700384
+Peer id invalid: -1002968700384
+Traceback (most recent call last):
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/methods/advanced/resolve_peer.py", line 62, in resolve_peer
+    return await self.storage.get_peer_by_id(peer_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/storage/sqlite_storage.py", line 142, in get_peer_by_id
+    raise KeyError(f"ID not found: {peer_id}")
+KeyError: 'ID not found: -1002968700384'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/dispatcher.py", line 214, in handler_worker
+    await parser(update, users, chats)
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/dispatcher.py", line 75, in edited_message_parser
+    parsed, _ = await message_parser(update, users, chats)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/dispatcher.py", line 68, in message_parser
+    await pyrogram.types.Message._parse(self.client, update.message, users, chats,
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/types/messages_and_media/message.py", line 836, in _parse
+    reply_to_message = await client.get_messages(
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/methods/messages/get_messages.py", line 101, in get_messages
+    peer = await self.resolve_peer(chat_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/methods/advanced/resolve_peer.py", line 89, in resolve_peer
+    peer_type = utils.get_peer_type(peer_id)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/utils.py", line 246, in get_peer_type
+    raise ValueError(f"Peer id invalid: {peer_id}")
+ValueError: Peer id invalid: -1002968700384
