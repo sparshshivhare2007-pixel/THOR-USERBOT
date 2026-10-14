@@ -16,9 +16,9 @@ os.makedirs("userbots", exist_ok=True)
 # USERBOT TEMPLATE — All Userbot Commands
 # ============================================================
 USERBOT_TEMPLATE = '''\
-import time, asyncio
+import time
 from pyrogram import Client, filters
-from pyrogram.types import Message
+from pyrogram.types import Message, ChatPermissions
 from pyrogram.enums import ChatMemberStatus
 
 SESSION   = "{session}"
@@ -28,6 +28,8 @@ OWNER     = "{owner}"
 
 app   = Client("ub", api_id=API_ID, api_hash=API_HASH, session_string=SESSION)
 START = time.time()
+
+STOP_TAG = set()   # chat ids where tagall should stop
 
 
 # ---------------- .ping ----------------
@@ -52,39 +54,63 @@ async def ping(c, m: Message):
 async def alive(c, m: Message):
     txt = (
         "╭━━━〔 ❖ 𝐓𝐇𝐎𝐑 𝐀ʟɪᴠᴇ ╮ 〕━━━╮\\n"
-        f"┣ • 𝐎ᴡɴᴇʀ : @{{OWNER}}\\n"
-        "┣ • 𝐒ᴛᴀᴛᴜs : ✅ 𝐎ɴʟɪɴᴇ\\n"
+        f"┣ • 𝐎ᴡɴᴇʀ  : @{{OWNER}}\\n"
+        "┣ • 𝐒ᴛᴀᴛᴜs  : ✅ 𝐎ɴʟɪɴᴇ\\n"
         "┣ • 𝐕ᴇʀsɪᴏɴ : v1.0\\n"
         "╰━━━━━━━━━━━━━━━━━━╯"
     )
     await m.edit(txt)
 
 
-# ---------------- .tagall ----------------
+# ---------------- .tagall + .stoptagall ----------------
+@app.on_message(filters.command("stoptagall", prefixes=".") & filters.me)
+async def stoptagall(c, m: Message):
+    STOP_TAG.add(m.chat.id)
+    await m.edit("🛑 Tagall stopped.")
+
+
 @app.on_message(filters.command("tagall", prefixes=".") & filters.me)
 async def tagall(c, m: Message):
     if len(m.command) < 2 and not m.reply_to_message:
         return await m.edit("⚠️ Usage: `.tagall <message>`")
-    msg = m.text.split(None, 1)[1] if len(m.command) > 1 else \\
-          (m.reply_to_message.text if m.reply_to_message else "Hey!")
-    mentions, count = [], 0
+
+    if len(m.command) > 1:
+        msg = m.text.split(None, 1)[1]
+    elif m.reply_to_message:
+        msg = m.reply_to_message.text or m.reply_to_message.caption or "Hey!"
+    else:
+        msg = "Hey!"
+
+    chat_id = m.chat.id
+    STOP_TAG.discard(chat_id)
+
+    await m.edit(f"📣 Tagging with: **{{msg}}**\\nStop with `.stoptagall`")
+
+    count = 0
     try:
-        async for member in c.get_chat_members(m.chat.id):
+        async for member in c.get_chat_members(chat_id):
+            if chat_id in STOP_TAG:
+                STOP_TAG.discard(chat_id)
+                return await c.send_message(
+                    chat_id,
+                    f"🛑 Stopped. Tagged **{{count}}** members."
+                )
             if member.user.is_bot or member.user.is_deleted:
                 continue
             if member.status in (ChatMemberStatus.LEFT, ChatMemberStatus.BANNED):
                 continue
-            mentions.append(f"[{{member.user.first_name}}](tg://user?id={{member.user.id}})")
-            count += 1
-            if len(mentions) == 5:
-                await c.send_message(m.chat.id, msg + "\\n\\n" + " ".join(mentions))
-                mentions = []
-                time.sleep(0.8)
-        if mentions:
-            await c.send_message(m.chat.id, msg + "\\n\\n" + " ".join(mentions))
-        await m.edit(f"✅ Tagged {{count}} members.")
+            name = member.user.first_name or "User"
+            mention = f"[{{name}}](tg://user?id={{member.user.id}})"
+            try:
+                await c.send_message(chat_id, f"{{msg}} {{mention}}")
+                count += 1
+            except Exception:
+                pass
+            time.sleep(0.6)
+
+        await c.send_message(chat_id, f"✅ Done. Tagged **{{count}}** members.")
     except Exception as e:
-        await m.edit(f"❌ Error: `{{e}}`")
+        await c.send_message(chat_id, f"❌ Error: `{{e}}`")
 
 
 # ---------------- .tagadmin ----------------
@@ -98,7 +124,9 @@ async def tagadmin(c, m: Message):
                 continue
             mentions.append(f"[{{member.user.first_name}}](tg://user?id={{member.user.id}})")
         if mentions:
-            await c.send_message(m.chat.id, msg + "\\n\\n" + " ".join(mentions))
+            for i, men in enumerate(mentions):
+                await c.send_message(m.chat.id, f"{{msg}} {{men}}")
+                time.sleep(0.5)
             await m.edit(f"✅ Tagged {{len(mentions)}} admins.")
         else:
             await m.edit("❌ No admins found.")
@@ -106,13 +134,13 @@ async def tagadmin(c, m: Message):
         await m.edit(f"❌ Error: `{{e}}`")
 
 
-# ---------------- .info ----------------
+# ---------------- .info (no delete) ----------------
 @app.on_message(filters.command("info", prefixes=".") & filters.me)
 async def info(c, m: Message):
     u = m.reply_to_message.from_user if m.reply_to_message else m.from_user
     try:
         full = await c.get_chat(u.id)
-        bio = full.bio if hasattr(full, "bio") else "N/A"
+        bio = getattr(full, "bio", None) or "N/A"
     except Exception:
         bio = "N/A"
     txt = (
@@ -124,7 +152,8 @@ async def info(c, m: Message):
         f"┣ • 𝐁ɪᴏ      : {{bio}}\\n"
         "╰━━━━━━━━━━━━━━━━━━╯"
     )
-    await m.edit(txt)
+    # Send as reply, don't delete original
+    await m.reply(txt)
 
 
 # ---------------- .id ----------------
@@ -133,7 +162,7 @@ async def get_id(c, m: Message):
     txt = f"💬 **Chat ID:** `{{m.chat.id}}`\\n"
     if m.reply_to_message:
         txt += f"👤 **User ID:** `{{m.reply_to_message.from_user.id}}`"
-    await m.edit(txt)
+    await m.reply(txt)
 
 
 # ---------------- .spam ----------------
@@ -144,7 +173,7 @@ async def spam(c, m: Message):
     try:
         count = int(m.command[1])
         if count > 20:
-            return await m.edit("⚠️ Max 20 messages allowed.")
+            return await m.edit("⚠️ Max 20 messages.")
     except ValueError:
         return await m.edit("⚠️ Count ek number hona chahiye.")
     text = m.text.split(None, 2)[2]
@@ -175,9 +204,9 @@ async def kick(c, m: Message):
     try:
         await c.ban_chat_member(m.chat.id, u.id)
         await c.unban_chat_member(m.chat.id, u.id)
-        await m.edit(f"👢 Kicked {{u.first_name}}")
+        await m.reply(f"👢 Kicked {{u.first_name}}")
     except Exception as e:
-        await m.edit(f"❌ Error: `{{e}}`")
+        await m.reply(f"❌ Error: `{{e}}`")
 
 
 # ---------------- .ban ----------------
@@ -188,9 +217,9 @@ async def ban(c, m: Message):
     u = m.reply_to_message.from_user
     try:
         await c.ban_chat_member(m.chat.id, u.id)
-        await m.edit(f"🚫 Banned {{u.first_name}}")
+        await m.reply(f"🚫 Banned {{u.first_name}}")
     except Exception as e:
-        await m.edit(f"❌ Error: `{{e}}`")
+        await m.reply(f"❌ Error: `{{e}}`")
 
 
 # ---------------- .unban ----------------
@@ -201,29 +230,89 @@ async def unban(c, m: Message):
     u = m.reply_to_message.from_user
     try:
         await c.unban_chat_member(m.chat.id, u.id)
-        await m.edit(f"✅ Unbanned {{u.first_name}}")
+        await m.reply(f"✅ Unbanned {{u.first_name}}")
     except Exception as e:
-        await m.edit(f"❌ Error: `{{e}}`")
+        await m.reply(f"❌ Error: `{{e}}`")
 
 
-# ---------------- .promote ----------------
+# ---------------- .mute ----------------
+@app.on_message(filters.command("mute", prefixes=".") & filters.me)
+async def mute(c, m: Message):
+    if not m.reply_to_message:
+        return await m.edit("⚠️ Reply karo jise mute karna hai")
+    u = m.reply_to_message.from_user
+    try:
+        await c.restrict_chat_member(m.chat.id, u.id, ChatPermissions())
+        await m.reply(f"🔇 Muted {{u.first_name}}")
+    except Exception as e:
+        await m.reply(f"❌ Error: `{{e}}`")
+
+
+# ---------------- .unmute ----------------
+@app.on_message(filters.command("unmute", prefixes=".") & filters.me)
+async def unmute(c, m: Message):
+    if not m.reply_to_message:
+        return await m.edit("⚠️ Reply karo jise unmute karna hai")
+    u = m.reply_to_message.from_user
+    try:
+        perms = ChatPermissions(
+            can_send_messages=True,
+            can_send_media_messages=True,
+            can_send_other_messages=True,
+            can_add_web_page_previews=True,
+        )
+        await c.restrict_chat_member(m.chat.id, u.id, perms)
+        await m.reply(f"🔊 Unmuted {{u.first_name}}")
+    except Exception as e:
+        await m.reply(f"❌ Error: `{{e}}`")
+
+
+# ---------------- .promote full / half ----------------
 @app.on_message(filters.command("promote", prefixes=".") & filters.me)
 async def promote(c, m: Message):
     if not m.reply_to_message:
         return await m.edit("⚠️ Reply karo jise promote karna hai")
+
+    mode = "half"
+    if len(m.command) > 1:
+        arg = m.command[1].lower()
+        if arg not in ("full", "half"):
+            return await m.edit("⚠️ Usage: `.promote full` or `.promote half`")
+        mode = arg
+
     u = m.reply_to_message.from_user
-    try:
-        await c.promote_chat_member(
-            m.chat.id, u.id,
+
+    if mode == "full":
+        perms = dict(
             can_change_info=True,
             can_delete_messages=True,
             can_invite_users=True,
             can_restrict_members=True,
             can_pin_messages=True,
+            can_promote_members=True,
+            can_manage_chat=True,
+            can_manage_video_chats=True,
         )
-        await m.edit(f"⭐ Promoted {{u.first_name}}")
+        title = "⭐ Promoted FULL"
+    else:
+        # Half: no add admin, no change info
+        perms = dict(
+            can_change_info=False,
+            can_delete_messages=True,
+            can_invite_users=True,
+            can_restrict_members=True,
+            can_pin_messages=True,
+            can_promote_members=False,
+            can_manage_chat=False,
+            can_manage_video_chats=False,
+        )
+        title = "⭐ Promoted HALF"
+
+    try:
+        await c.promote_chat_member(m.chat.id, u.id, **perms)
+        await m.reply(f"{{title}} — {{u.first_name}}")
     except Exception as e:
-        await m.edit(f"❌ Error: `{{e}}`")
+        await m.reply(f"❌ Error: `{{e}}`")
 
 
 # ---------------- .demote ----------------
@@ -240,44 +329,13 @@ async def demote(c, m: Message):
             can_invite_users=False,
             can_restrict_members=False,
             can_pin_messages=False,
+            can_promote_members=False,
+            can_manage_chat=False,
+            can_manage_video_chats=False,
         )
-        await m.edit(f"⬇️ Demoted {{u.first_name}}")
+        await m.reply(f"⬇️ Demoted {{u.first_name}}")
     except Exception as e:
-        await m.edit(f"❌ Error: `{{e}}`")
-
-
-# ---------------- .mute ----------------
-@app.on_message(filters.command("mute", prefixes=".") & filters.me)
-async def mute(c, m: Message):
-    if not m.reply_to_message:
-        return await m.edit("⚠️ Reply karo jise mute karna hai")
-    u = m.reply_to_message.from_user
-    try:
-        from pyrogram.types import ChatPermissions
-        await c.restrict_chat_member(m.chat.id, u.id, ChatPermissions())
-        await m.edit(f"🔇 Muted {{u.first_name}}")
-    except Exception as e:
-        await m.edit(f"❌ Error: `{{e}}`")
-
-
-# ---------------- .unmute ----------------
-@app.on_message(filters.command("unmute", prefixes=".") & filters.me)
-async def unmute(c, m: Message):
-    if not m.reply_to_message:
-        return await m.edit("⚠️ Reply karo jise unmute karna hai")
-    u = m.reply_to_message.from_user
-    try:
-        from pyrogram.types import ChatPermissions
-        perms = ChatPermissions(
-            can_send_messages=True,
-            can_send_media_messages=True,
-            can_send_other_messages=True,
-            can_add_web_page_previews=True,
-        )
-        await c.restrict_chat_member(m.chat.id, u.id, perms)
-        await m.edit(f"🔊 Unmuted {{u.first_name}}")
-    except Exception as e:
-        await m.edit(f"❌ Error: `{{e}}`")
+        await m.reply(f"❌ Error: `{{e}}`")
 
 
 # ---------------- .pin ----------------
@@ -287,9 +345,9 @@ async def pin(c, m: Message):
         return await m.edit("⚠️ Reply karo jise pin karna hai")
     try:
         await c.pin_chat_message(m.chat.id, m.reply_to_message.id)
-        await m.edit("📌 Pinned!")
+        await m.reply("📌 Pinned!")
     except Exception as e:
-        await m.edit(f"❌ Error: `{{e}}`")
+        await m.reply(f"❌ Error: `{{e}}`")
 
 
 # ---------------- .del ----------------
@@ -301,25 +359,57 @@ async def delete(c, m: Message):
         await m.reply_to_message.delete()
         await m.delete()
     except Exception as e:
-        await m.edit(f"❌ Error: `{{e}}`")
+        await m.reply(f"❌ Error: `{{e}}`")
 
 
-# ---------------- .gcast ----------------
+# ---------------- .gcast / .gcast -d ----------------
 @app.on_message(filters.command("gcast", prefixes=".") & filters.me)
 async def gcast(c, m: Message):
-    if len(m.command) < 2:
-        return await m.edit("⚠️ Usage: `.gcast <message>`")
-    msg = m.text.split(None, 1)[1]
+    args = m.text.split(None, 1)
+    to_dm = False
+
+    if len(args) > 1 and args[1].startswith("-d"):
+        to_dm = True
+        msg = args[1][2:].strip()
+    else:
+        msg = args[1] if len(args) > 1 else None
+
+    if not msg and m.reply_to_message:
+        msg = m.reply_to_message.text or m.reply_to_message.caption
+
+    if not msg:
+        return await m.edit(
+            "⚠️ Usage:\\n"
+            "• `.gcast <msg>` — groups\\n"
+            "• `.gcast -d <msg>` — DMs"
+        )
+
+    target = "DMs" if to_dm else "Groups"
+    await m.edit(f"📢 Broadcasting to **{{target}}**...")
+
     sent, failed = 0, 0
-    await m.edit("📢 Broadcasting...")
-    async for d in c.get_dialogs():
+    async for dialog in c.get_dialogs():
+        chat_type = str(dialog.chat.type).lower()
+        is_group = "group" in chat_type
+        is_private = "private" in chat_type
+
+        if to_dm and not is_private:
+            continue
+        if not to_dm and not is_group:
+            continue
+
         try:
-            await c.send_message(d.chat.id, msg)
+            await c.send_message(dialog.chat.id, msg)
             sent += 1
-            time.sleep(0.5)
+            time.sleep(0.7)
         except Exception:
             failed += 1
-    await m.edit(f"✅ Sent: {{sent}}\\n❌ Failed: {{failed}}")
+
+    await m.edit(
+        f"✅ **Broadcast Done** ({{target}})\\n"
+        f"📤 Sent: {{sent}}\\n"
+        f"❌ Failed: {{failed}}"
+    )
 
 
 # ---------------- .help ----------------
@@ -327,22 +417,25 @@ async def gcast(c, m: Message):
 async def help_userbot(c, m: Message):
     txt = (
         "╭━━━〔 ❖ 𝐓𝐇𝐎𝐑 𝐂ᴍᴅs ╮ 〕━━━╮\\n"
-        "┣ • .ping — Speed check\\n"
-        "┣ • .alive — Bot status\\n"
+        "┣ • .ping — Speed\\n"
+        "┣ • .alive — Status\\n"
         "┣ • .info — User info\\n"
         "┣ • .id — Chat/User ID\\n"
         "┣ • .tagall <msg>\\n"
+        "┣ • .stoptagall — Stop\\n"
         "┣ • .tagadmin <msg>\\n"
         "┣ • .spam <n> <msg>\\n"
         "┣ • .purge (reply)\\n"
         "┣ • .kick / .ban / .unban\\n"
         "┣ • .mute / .unmute\\n"
-        "┣ • .promote / .demote\\n"
+        "┣ • .promote full/half\\n"
+        "┣ • .demote\\n"
         "┣ • .pin / .del\\n"
         "┣ • .gcast <msg>\\n"
+        "┣ • .gcast -d <msg>\\n"
         "╰━━━━━━━━━━━━━━━━━━╯"
     )
-    await m.edit(txt)
+    await m.reply(txt)
 
 
 print(f"✅ Userbot running for @{{OWNER}}")
@@ -362,7 +455,7 @@ def is_valid_phone(p: str) -> bool:
 
 
 # ============================================================
-# REGISTER BOT HANDLERS
+# BOT HANDLERS
 # ============================================================
 def register(app):
 
@@ -375,7 +468,7 @@ def register(app):
         await db.set_stage(uid, "phone")
         await m.reply(fonts.ask_phone())
 
-    # ---------------- Login flow router ----------------
+    # ---------------- Login flow ----------------
     @app.on_message(filters.private & filters.text, group=1)
     async def flow(c, m: Message):
         uid = m.from_user.id
@@ -384,12 +477,11 @@ def register(app):
         # ============ PHONE ============
         if stage == "phone":
             phone = clean_phone(m.text.strip())
-
             if not phone.startswith("+") or not is_valid_phone(phone):
                 return await m.reply(
-                    "❌ **Invalid phone number!**\\n\\n"
-                    "Sahi format: `+919876543210`\\n"
-                    "Country code zaroori hai (e.g. +91, +1, +62)\\n\\n"
+                    "❌ **Invalid phone!**\\n\\n"
+                    "Format: `+919876543210`\\n"
+                    "Country code zaroori hai.\\n\\n"
                     "Phir se bhejo:"
                 )
 
@@ -409,16 +501,15 @@ def register(app):
 
                 if "PHONE_NUMBER_INVALID" in err:
                     return await m.reply(
-                        "❌ **Telegram says phone invalid!**\\n\\n"
+                        "❌ **Phone invalid!**\\n\\n"
                         "Check karo:\\n"
-                        "• Country code sahi? (`+91` India, `+62` Indonesia)\\n"
-                        "• Extra zero ya space nahi?\\n"
-                        "• Number active hai?\\n\\n"
-                        "Sahi format: `+919876543210`\\n\\n"
+                        "• Country code sahi? (+91, +62, +1)\\n"
+                        "• Extra zero/space nahi?\\n\\n"
+                        "Format: `+919876543210`\\n"
                         "Try /host again."
                     )
                 elif "PHONE_NUMBER_BANNED" in err:
-                    return await m.reply("🚫 Ye number Telegram pe banned hai.\\nTry another number.")
+                    return await m.reply("🚫 Number banned hai. Doosra try karo.")
                 elif "FLOOD_WAIT" in err:
                     secs = re.search(r"FLOOD_WAIT_(\\d+)", err)
                     w = secs.group(1) if secs else "kuch"
@@ -427,10 +518,8 @@ def register(app):
                     return await m.reply(f"❌ Failed: `{e}`\\nTry /host again.")
 
             LOGIN[uid] = {
-                "client": cli,
-                "phone": phone,
-                "hash": sent.phone_code_hash,
-                "tries": 3,
+                "client": cli, "phone": phone,
+                "hash": sent.phone_code_hash, "tries": 3,
             }
             await db.set_stage(uid, "otp")
             return await m.reply(fonts.ask_otp())
@@ -441,7 +530,6 @@ def register(app):
             if not st:
                 await db.clear_stage(uid)
                 return await m.reply("⚠️ Session expired. Use /host again.")
-
             otp = m.text.replace(" ", "")
             try:
                 await st["client"].sign_in(st["phone"], st["hash"], otp)
@@ -453,7 +541,7 @@ def register(app):
             except PhoneCodeExpired:
                 LOGIN.pop(uid, None)
                 await db.clear_stage(uid)
-                return await m.reply("❌ **OTP expire!** /host se dobara try karo.")
+                return await m.reply("❌ **OTP expire!** /host se dobara.")
             except Exception as e:
                 return await m.reply(f"❌ Error: `{e}`")
 
@@ -469,7 +557,6 @@ def register(app):
             if not st:
                 await db.clear_stage(uid)
                 return await m.reply("⚠️ Session expired. Use /host again.")
-
             try:
                 await st["client"].check_password(m.text)
                 session = await st["client"].export_session_string()
@@ -482,10 +569,7 @@ def register(app):
                 if st["tries"] <= 0:
                     LOGIN.pop(uid, None)
                     await db.clear_stage(uid)
-                    return await m.reply(
-                        "❌ **Too many wrong 2FA attempts.**\\n"
-                        "Use /host again."
-                    )
+                    return await m.reply("❌ Too many wrong attempts. /host again.")
                 return await m.reply(fonts.wrong_2fa(st["tries"]))
 
 
@@ -519,7 +603,7 @@ async def deploy_userbot(m: Message, uid: int, session: str):
         await db.delete_hosted(uid)
         await m.reply(
             "❌ **Userbot crashed on start.**\\n\\n"
-            "Check `userbots/ub_" + str(uid) + ".log` for details.\\n"
+            "Check `userbots/ub_" + str(uid) + ".log`\\n"
             "Try /logout then /host again."
         )
     else:
