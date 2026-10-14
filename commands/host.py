@@ -29,7 +29,7 @@ OWNER     = "{owner}"
 app   = Client("ub", api_id=API_ID, api_hash=API_HASH, session_string=SESSION)
 START = time.time()
 
-STOP_TAG = set()   # chat ids where tagall should stop
+STOP_TAG = set()
 
 
 # ---------------- .ping ----------------
@@ -106,7 +106,7 @@ async def tagall(c, m: Message):
                 count += 1
             except Exception:
                 pass
-            time.sleep(0.6)
+            time.sleep(3)
 
         await c.send_message(chat_id, f"✅ Done. Tagged **{{count}}** members.")
     except Exception as e:
@@ -124,9 +124,9 @@ async def tagadmin(c, m: Message):
                 continue
             mentions.append(f"[{{member.user.first_name}}](tg://user?id={{member.user.id}})")
         if mentions:
-            for i, men in enumerate(mentions):
+            for men in mentions:
                 await c.send_message(m.chat.id, f"{{msg}} {{men}}")
-                time.sleep(0.5)
+                time.sleep(3)
             await m.edit(f"✅ Tagged {{len(mentions)}} admins.")
         else:
             await m.edit("❌ No admins found.")
@@ -134,7 +134,7 @@ async def tagadmin(c, m: Message):
         await m.edit(f"❌ Error: `{{e}}`")
 
 
-# ---------------- .info (no delete) ----------------
+# ---------------- .info ----------------
 @app.on_message(filters.command("info", prefixes=".") & filters.me)
 async def info(c, m: Message):
     u = m.reply_to_message.from_user if m.reply_to_message else m.from_user
@@ -152,7 +152,6 @@ async def info(c, m: Message):
         f"┣ • 𝐁ɪᴏ      : {{bio}}\\n"
         "╰━━━━━━━━━━━━━━━━━━╯"
     )
-    # Send as reply, don't delete original
     await m.reply(txt)
 
 
@@ -268,6 +267,61 @@ async def unmute(c, m: Message):
 
 
 # ---------------- .promote full / half ----------------
+async def safe_promote(c, chat_id, user_id, mode):
+    """Try promote with v2 args, fallback if a kwarg isn't supported."""
+    if mode == "full":
+        perms = dict(
+            can_change_info=True,
+            can_delete_messages=True,
+            can_invite_users=True,
+            can_restrict_members=True,
+            can_pin_messages=True,
+            can_manage_chat=True,
+            can_manage_video_chats=True,
+            can_promote_members=True,
+        )
+    else:
+        perms = dict(
+            can_change_info=False,
+            can_delete_messages=True,
+            can_invite_users=True,
+            can_restrict_members=True,
+            can_pin_messages=True,
+            can_manage_chat=False,
+            can_manage_video_chats=False,
+            can_promote_members=False,
+        )
+
+    try:
+        await c.promote_chat_member(chat_id, user_id, **perms)
+        return True, None
+    except TypeError as e:
+        # fallback: drop unsupported kwargs one by one
+        current = dict(perms)
+        for key in ("can_promote_members", "can_manage_video_chats",
+                    "can_manage_chat", "can_pin_messages"):
+            try:
+                await c.promote_chat_member(chat_id, user_id, **current)
+                return True, None
+            except TypeError:
+                current.pop(key, None)
+        return False, str(e)
+    except Exception as e:
+        # try minimal
+        try:
+            await c.promote_chat_member(
+                chat_id, user_id,
+                can_change_info=False,
+                can_delete_messages=True,
+                can_invite_users=True,
+                can_restrict_members=True,
+                can_pin_messages=True,
+            )
+            return True, None
+        except Exception as e2:
+            return False, str(e2)
+
+
 @app.on_message(filters.command("promote", prefixes=".") & filters.me)
 async def promote(c, m: Message):
     if not m.reply_to_message:
@@ -281,38 +335,13 @@ async def promote(c, m: Message):
         mode = arg
 
     u = m.reply_to_message.from_user
+    ok, err = await safe_promote(c, m.chat.id, u.id, mode)
 
-    if mode == "full":
-        perms = dict(
-            can_change_info=True,
-            can_delete_messages=True,
-            can_invite_users=True,
-            can_restrict_members=True,
-            can_pin_messages=True,
-            can_promote_members=True,
-            can_manage_chat=True,
-            can_manage_video_chats=True,
-        )
-        title = "⭐ Promoted FULL"
-    else:
-        # Half: no add admin, no change info
-        perms = dict(
-            can_change_info=False,
-            can_delete_messages=True,
-            can_invite_users=True,
-            can_restrict_members=True,
-            can_pin_messages=True,
-            can_promote_members=False,
-            can_manage_chat=False,
-            can_manage_video_chats=False,
-        )
-        title = "⭐ Promoted HALF"
-
-    try:
-        await c.promote_chat_member(m.chat.id, u.id, **perms)
+    if ok:
+        title = "⭐ Promoted FULL" if mode == "full" else "⭐ Promoted HALF"
         await m.reply(f"{{title}} — {{u.first_name}}")
-    except Exception as e:
-        await m.reply(f"❌ Error: `{{e}}`")
+    else:
+        await m.reply(f"❌ Promote failed: `{{err}}`")
 
 
 # ---------------- .demote ----------------
@@ -321,19 +350,30 @@ async def demote(c, m: Message):
     if not m.reply_to_message:
         return await m.edit("⚠️ Reply karo jise demote karna hai")
     u = m.reply_to_message.from_user
+
+    perms = dict(
+        can_change_info=False,
+        can_delete_messages=False,
+        can_invite_users=False,
+        can_restrict_members=False,
+        can_pin_messages=False,
+        can_manage_chat=False,
+        can_manage_video_chats=False,
+        can_promote_members=False,
+    )
+
     try:
-        await c.promote_chat_member(
-            m.chat.id, u.id,
-            can_change_info=False,
-            can_delete_messages=False,
-            can_invite_users=False,
-            can_restrict_members=False,
-            can_pin_messages=False,
-            can_promote_members=False,
-            can_manage_chat=False,
-            can_manage_video_chats=False,
-        )
+        await c.promote_chat_member(m.chat.id, u.id, **perms)
         await m.reply(f"⬇️ Demoted {{u.first_name}}")
+    except TypeError:
+        current = dict(perms)
+        for key in ("can_promote_members", "can_manage_video_chats", "can_manage_chat"):
+            try:
+                await c.promote_chat_member(m.chat.id, u.id, **current)
+                return await m.reply(f"⬇️ Demoted {{u.first_name}}")
+            except TypeError:
+                current.pop(key, None)
+        await m.reply("❌ Demote failed.")
     except Exception as e:
         await m.reply(f"❌ Error: `{{e}}`")
 
@@ -459,7 +499,6 @@ def is_valid_phone(p: str) -> bool:
 # ============================================================
 def register(app):
 
-    # ---------------- /host ----------------
     @app.on_message(filters.command("host") & filters.private)
     async def host_cmd(c, m: Message):
         uid = m.from_user.id
@@ -468,13 +507,12 @@ def register(app):
         await db.set_stage(uid, "phone")
         await m.reply(fonts.ask_phone())
 
-    # ---------------- Login flow ----------------
     @app.on_message(filters.private & filters.text, group=1)
     async def flow(c, m: Message):
         uid = m.from_user.id
         stage = await db.get_stage(uid)
 
-        # ============ PHONE ============
+        # ---------- PHONE ----------
         if stage == "phone":
             phone = clean_phone(m.text.strip())
             if not phone.startswith("+") or not is_valid_phone(phone):
@@ -524,7 +562,7 @@ def register(app):
             await db.set_stage(uid, "otp")
             return await m.reply(fonts.ask_otp())
 
-        # ============ OTP ============
+        # ---------- OTP ----------
         if stage == "otp":
             st = LOGIN.get(uid)
             if not st:
@@ -551,7 +589,7 @@ def register(app):
             await db.clear_stage(uid)
             await deploy_userbot(m, uid, session)
 
-        # ============ 2FA ============
+        # ---------- 2FA ----------
         elif stage == "2fa":
             st = LOGIN.get(uid)
             if not st:
