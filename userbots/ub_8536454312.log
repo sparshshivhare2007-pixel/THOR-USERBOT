@@ -91,3 +91,4 @@ Traceback (most recent call last):
   File "/workspaces/THOR-USERBOT/venv/lib/python3.12/site-packages/pyrogram/utils.py", line 246, in get_peer_type
     raise ValueError(f"Peer id invalid: {peer_id}")
 ValueError: Peer id invalid: -1002968700384
+✅ Userbot running for @N
